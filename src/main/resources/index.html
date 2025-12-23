@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Stock Exchange - Live Feed</title>
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+  <style>
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #f5f5f5;
+    }
+    h1 { color: #333; }
+    .controls {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .status {
+        display: inline-block;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-weight: bold;
+        margin-right: 10px;
+    }
+    .connected { background: #d4edda; color: #155724; }
+    .disconnected { background: #f8d7da; color: #721c24; }
+    button {
+        padding: 10px 20px;
+        margin: 5px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: bold;
+    }
+    .btn-connect { background: #28a745; color: white; }
+    .btn-disconnect { background: #dc3545; color: white; }
+    .stocks-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 15px;
+    }
+    .stock-card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+    }
+    .stock-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    .symbol {
+        font-size: 24px;
+        font-weight: bold;
+        color: #333;
+    }
+    .price {
+        font-size: 36px;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    .positive { color: #28a745; }
+    .negative { color: #dc3545; }
+    .details {
+        font-size: 12px;
+        color: #666;
+        margin-top: 10px;
+        border-top: 1px solid #eee;
+        padding-top: 10px;
+    }
+    .endpoint-info {
+        background: #fff3cd;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        border-left: 4px solid #ffc107;
+    }
+    .endpoint-info code {
+        background: #f8f9fa;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+<h1>📈 Stock Exchange - Real-time Feed</h1>
+
+<div class="endpoint-info">
+  <strong>⚙️ Configuration:</strong><br>
+  WebSocket Endpoint: <code id="ws-endpoint">Not configured</code><br>
+  Exchange Topic: <code>/exchange/amq.topic/stock.*</code>
+</div>
+
+<div class="controls">
+  <span id="status" class="status disconnected">Disconnected</span>
+  <button class="btn-connect" onclick="connect()">Connect</button>
+  <button class="btn-disconnect" onclick="disconnect()">Disconnect</button>
+  <span id="message-count" style="margin-left: 20px;">Messages: 0</span>
+</div>
+
+<div id="stocks" class="stocks-grid"></div>
+
+<script>
+  let stompClient = null;
+  let messageCount = 0;
+
+  // ⚠️ IMPORTANT: Replace this with your actual Container App URL
+  // Get it by running: az containerapp show --name stock-exchange-api --resource-group stock-exchange-rg --query "properties.configuration.ingress.fqdn" -o tsv
+  const WS_ENDPOINT = ' https://stock-exchange-api.jollydesert-cf7ff133.westeurope.azurecontainerapps.io/ws';
+
+  // Display the endpoint in the UI
+  document.getElementById('ws-endpoint').textContent = WS_ENDPOINT;
+
+  function connect() {
+      console.log('Connecting to:', WS_ENDPOINT);
+
+      const socket = new SockJS(WS_ENDPOINT);
+      stompClient = Stomp.over(socket);
+
+      // Enable debug logging
+      stompClient.debug = function(str) {
+          console.log('STOMP:', str);
+      };
+
+      stompClient.connect({},
+          function(frame) {
+              console.log('✅ Connected:', frame);
+              setStatus(true);
+
+              // Subscribe to the exchange topic to receive all stock updates
+              stompClient.subscribe('/exchange/amq.topic/stock.*', function(message) {
+                  messageCount++;
+                  document.getElementById('message-count').textContent = 'Messages: ' + messageCount;
+
+                  const stockPrice = JSON.parse(message.body);
+                  console.log('📊 Received:', stockPrice.symbol, '$' + stockPrice.price.toFixed(2));
+                  updateStock(stockPrice);
+              });
+
+              console.log('✅ Subscribed to: /exchange/amq.topic/stock.*');
+          },
+          function(error) {
+              console.error('❌ Connection error:', error);
+              setStatus(false);
+              alert('Connection failed! Check console for details.\n\nMake sure to:\n1. Replace YOUR_CONTAINER_APP_URL_HERE with your actual URL\n2. Check that your Container App is running');
+          }
+      );
+  }
+
+  function disconnect() {
+      if (stompClient !== null) {
+          stompClient.disconnect();
+          console.log('Disconnected');
+      }
+      setStatus(false);
+  }
+
+  function setStatus(connected) {
+      const statusEl = document.getElementById('status');
+      if (connected) {
+          statusEl.textContent = '🟢 Connected';
+          statusEl.className = 'status connected';
+      } else {
+          statusEl.textContent = '🔴 Disconnected';
+          statusEl.className = 'status disconnected';
+      }
+  }
+
+  function updateStock(stock) {
+      let card = document.getElementById('stock-' + stock.symbol);
+
+      if (!card) {
+          card = document.createElement('div');
+          card.id = 'stock-' + stock.symbol;
+          card.className = 'stock-card';
+          document.getElementById('stocks').appendChild(card);
+      }
+
+      const changeClass = stock.change >= 0 ? 'positive' : 'negative';
+      const changeSign = stock.change >= 0 ? '+' : '';
+
+      card.innerHTML = `
+          <div class="symbol">${stock.symbol}</div>
+          <div class="price ${changeClass}">$${stock.price.toFixed(2)}</div>
+          <div class="${changeClass}" style="font-size: 16px;">
+              ${changeSign}$${stock.change.toFixed(2)}
+              (${changeSign}${stock.changePercent.toFixed(2)}%)
+          </div>
+          <div class="details">
+              <strong>High:</strong> $${stock.dayHigh.toFixed(2)}<br>
+              <strong>Low:</strong> $${stock.dayLow.toFixed(2)}<br>
+              <strong>Volume:</strong> ${stock.volume.toLocaleString()}<br>
+              <strong>Updated:</strong> ${new Date(stock.timestamp).toLocaleTimeString()}
+          </div>
+      `;
+  }
+
+  // Check if endpoint is configured
+  if (WS_ENDPOINT.includes('YOUR_CONTAINER_APP_URL_HERE')) {
+      alert('⚠️ Please configure your WebSocket endpoint!\n\nEdit the HTML file and replace YOUR_CONTAINER_APP_URL_HERE with your actual Container App URL.');
+  }
+</script>
+</body>
+</html>
+`

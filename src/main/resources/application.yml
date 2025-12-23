@@ -1,0 +1,63 @@
+spring:
+  application:
+    name: stock-exchange-api
+
+  # Database Configuration
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/stockdb}
+    username: ${SPRING_DATASOURCE_USERNAME:dbadmin}
+    password: ${SPRING_DATASOURCE_PASSWORD:password}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+# RabbitMQ STOMP Broker Configuration
+rabbitmq:
+  stomp:
+    # Enable external STOMP broker (set to false for local dev with simple broker)
+    enabled: ${RABBITMQ_STOMP_ENABLED:true}
+
+    # RabbitMQ Connection Details
+    host: ${RABBITMQ_HOST:stock-rabbitmq.eastus.azurecontainer.io}
+    port: ${RABBITMQ_STOMP_PORT:61613}
+
+    # Credentials
+    username: ${RABBITMQ_USERNAME:stockadmin}
+    password: ${RABBITMQ_PASSWORD:StockExchange2024!}
+
+    # Virtual Host (use / for default, or /stocks if you created custom vhost)
+    virtual-host: ${RABBITMQ_VIRTUAL_HOST:/}
+
+    # Connection Settings
+    connection-timeout: 30000
+    heartbeat-interval: 20000
+
+# Stock Exchange Settings
+stock-exchange:
+  update-interval: 1000
+  volatility: 0.02
+  symbols: AAPL,GOOGL,MSFT,TSLA,AMZN,NVDA,META,NFLX,AMD,INTC
+
+# Server Configuration
+server:
+  port: 8080
+  compression:
+    enabled: true
+
+# Logging
+logging:
+  level:
+    root: INFO
+    com.stockexchange: DEBUG
+    org.springframework.messaging: DEBUG
+    org.springframework.web.socket: DEBUG
+    io.netty: INFO
