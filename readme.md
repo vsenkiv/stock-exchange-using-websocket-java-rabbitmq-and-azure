@@ -8,7 +8,7 @@ The Stock Exchange API provides:
 - **Real-time stock price updates** for 10 major tech stocks (AAPL, GOOGL, MSFT, TSLA, AMZN, NVDA, META, NFLX, AMD, INTC)
 - **WebSocket/STOMP messaging** for instant price delivery to clients
 - **Multi-instance scalability** using RabbitMQ as a message broker
-- **Historical price data** stored in PostgreSQL (Azure Cosmos DB for PostgreSQL)
+- **Historical price data** stored in PostgreSQL (in this example Azure Cosmos DB for PostgreSQL)
 - **Horizontal scaling** support for handling millions of concurrent connections
 
 ## 🏗️ Architecture
@@ -48,7 +48,7 @@ The API exposes WebSocket endpoints for real-time communication:
 
 **Full URL Example:**
 ```
-https://stock-exchange-api.proudsand-12345678.eastus.azurecontainerapps.io/ws
+https://{host_name}:{local_port}/ws
 ```
 
 ### REST Endpoints (Optional)
@@ -64,7 +64,7 @@ https://stock-exchange-api.proudsand-12345678.eastus.azurecontainerapps.io/ws
 
 ```javascript
 // 1. Connect to WebSocket endpoint
-const socket = new SockJS('https://your-app-url.azurecontainerapps.io/ws');
+const socket = new SockJS('https://{host_name}:{local_port}/ws');
 const stompClient = Stomp.over(socket);
 
 // 2. Establish connection
@@ -124,7 +124,7 @@ The included `index.html` file serves as a **live demonstration dashboard** for 
 ### Usage
 
 1. Open `index.html` in any modern web browser
-2. Replace `YOUR_CONTAINER_APP_URL_HERE` with your actual Azure Container App URL
+2. Replace `{host_name}:{local_port}` with your actual host and port's App
 3. Click "Connect" to establish WebSocket connection
 4. Watch as stock prices update in real-time (every second)
 
@@ -180,7 +180,7 @@ stock-exchange:
   symbols: AAPL,GOOGL,MSFT,TSLA,AMZN,NVDA,META,NFLX,AMD,INTC
 ```
 
-## 📦 Deployment
+## 📦 Deployment to the Azure Container App (it might be used different cloud services, not only Azure)
 
 ### Azure Container Apps
 
